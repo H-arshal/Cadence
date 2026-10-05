@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🚀 Cadence for ChatGPT</h1>
+  <img src="./cadence-lockup-dark.png" alt="Cadence for ChatGPT" width="400">
   <p><strong>A powerful Chrome extension for automating bulk image generation on ChatGPT / DALL-E 3</strong></p>
 </div>
 
@@ -7,7 +7,7 @@
 
 ## 📖 Overview
 
-Cadence is a Manifest V3 Chrome Extension that seamlessly injects into the ChatGPT web interface. It allows users to queue up dozens (or hundreds) of prompts, automatically executing them sequentially. 
+Cadence is a Manifest V3 Chrome Extension that seamlessly injects into the ChatGPT web interface. It allows users to queue up dozens (or hundreds) of prompts, automatically executing them sequentially.
 
 Instead of waiting for an image to generate before manually typing the next prompt, Cadence manages the entire workflow: **Type prompt → Send → Wait for completion → Auto-download image → Trigger next prompt.**
 
@@ -35,6 +35,7 @@ cadence/
 ```
 
 For deeper architectural details, please see the [Documentation](/docs):
+
 - [PRD.md](docs/PRD.md): Scope and requirements.
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): Component interactions and state models.
 - [WORKFLOW.md](docs/WORKFLOW.md): Sequence mapping and error handling.

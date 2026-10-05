@@ -3,6 +3,13 @@
   "name": "Cadence for ChatGPT",
   "version": "0.1.0",
   "description": "Queue many image prompts and let them run one after another on ChatGPT.",
+  "icons": {
+    "128": "./cadence-lockup-dark.png"
+  },
+  "action": {
+    "default_icon": "./cadence-lockup-dark.png",
+    "default_title": "Cadence"
+  },
   "permissions": ["storage", "downloads"],
   "host_permissions": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
   "background": { "service_worker": "background.js" },
