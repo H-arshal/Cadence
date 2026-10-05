@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="128" height="128" viewBox="0 0 128 128">
+
+  <!-- Background -->
+  <rect width="128" height="128" fill="#191A1B"/>
+
+  <!-- White Cadence C -->
+  <path
+    d="M77.5 30
+       H52
+       C34.2 30 21 43.5 21 64
+       C21 84.5 34.2 98 52 98
+       H77.5"
+    fill="none"
+    stroke="#FEFEFE"
+    stroke-width="8.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Orange sequence bar -->
+  <rect
+    x="46" y="57"
+    width="52" height="14"
+    rx="7"
+    fill="#F86D1A"
+  />
+</svg>

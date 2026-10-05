@@ -48,7 +48,7 @@
     display:flex;align-items:center;gap:8px;}
   #fab:hover{transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.12); background:var(--surface)}
   #fab:active{transform:translateY(1px); box-shadow:0 2px 8px rgba(0,0,0,.08);}
-  #fab svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #fab svg{width:18px;height:18px}
   
   #panel{position:fixed;top:0;right:0;height:100vh;width:var(--panel-width, 320px);z-index:2147483001;background:var(--bg);
     border-left:1px solid var(--border);display:flex;flex-direction:column; overflow:hidden;
@@ -119,7 +119,10 @@
 
   const HTML = `
   <button id="fab">
-    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7M14 15l3 3 5-5"/></svg>
+    <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <path d="M77.5 30 H52 C34.2 30 21 43.5 21 64 C21 84.5 34.2 98 52 98 H77.5" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="46" y="57" width="52" height="14" rx="7" fill="#F86D1A" stroke="none" />
+    </svg>
     Cadence
   </button>
   <aside id="panel">
