@@ -1,7 +1,15 @@
 // Queue state, persistence, and the run loop. Glues engine + panel.
 (async () => {
   const PQ = window.PQ;
-  const KEY = 'pq_state';
+  const uid = () => Math.random().toString(36).slice(2, 9);
+  
+  // Make state tab-specific by persisting a unique ID in sessionStorage
+  let tabId = sessionStorage.getItem('pq_tab_id');
+  if (!tabId) {
+    tabId = uid();
+    sessionStorage.setItem('pq_tab_id', tabId);
+  }
+  const KEY = 'pq_state_' + tabId;
   const defaults = {
     items: [],
     running: false,
@@ -11,7 +19,6 @@
   let state = structuredClone(defaults);
   let loopActive = false;
 
-  const uid = () => Math.random().toString(36).slice(2, 9);
   const save = () => chrome.storage.local.set({ [KEY]: state });
   const emit = () => { save(); PQ.panel.render(state, loopActive); };
 

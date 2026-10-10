@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cadence Tests</title>
+  <script>
+    // Mock chrome extension APIs before scripts load
+    window.chrome = {
+      storage: {
+        local: {
+          get: async () => ({}),
+          set: async () => {}
+        }
+      },
+      runtime: {
+        sendMessage: () => {}
+      }
+    };
+  </script>
+</head>
+<body>
+  <div id="test-sandbox" style="display:none;"></div>
+  
+  <script src="../content/selectors.js"></script>
+  <script src="../content/engine.js"></script>
+  <script src="../content/panel.js"></script>
+  <script src="../content/main.js"></script>
+  
+  <script src="test_runner.js"></script>
+</body>
+</html>

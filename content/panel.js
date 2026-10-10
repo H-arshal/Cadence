@@ -324,7 +324,7 @@
           let cleaned = cleanMarker(line);
           currentPrompt = cleaned ? [cleaned] : [];
         } else {
-          if (currentPrompt.length === 0 && isFiller(line)) {
+          if (isFiller(line)) {
             continue;
           }
           if (currentPrompt.length === 0) {
@@ -337,7 +337,7 @@
         prompts.push(currentPrompt.join('\n'));
       }
       
-      prompts = prompts.filter(p => !isFiller(p) || p.length >= 10);
+      prompts = prompts.filter(p => !isFiller(p) && p.length >= 5);
       
       if (prompts.length === 1 && prompts[0].includes('\n')) {
          const splitByLines = prompts[0].split('\n').map(l => l.trim()).filter(l => l.length >= 5);

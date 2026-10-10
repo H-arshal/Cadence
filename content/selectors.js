@@ -34,6 +34,11 @@
       'a[data-testid="create-new-chat-button"]',
       'a[aria-label="New chat"]',
       'a[href="/"]'
+    ],
+    toast: [
+      'div[role="alert"]',
+      '.toast',
+      '.go3958317564' // Often used by react-hot-toast
     ]
   };
 

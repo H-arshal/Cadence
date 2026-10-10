@@ -20,6 +20,14 @@
     const el = PQ.find(PQ.SEL.input);
     if (!el) throw new Error('ChatGPT input box not found');
     el.focus();
+    
+    if (el.tagName === 'TEXTAREA') {
+      el.value = text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      if (!el.value.trim()) throw new Error('Could not type the prompt in textarea');
+      return;
+    }
+
     document.execCommand('selectAll', false);
     document.execCommand('delete', false);
     const ok = document.execCommand('insertText', false, text);
@@ -76,15 +84,24 @@
         if (!stableSince) stableSince = Date.now();
         if (Date.now() - stableSince >= 3000) {
           // DOM-agnostic image check: look for ANY new large image on the page
-          const currentImages = [...document.querySelectorAll('img')]
+          const allNewImages = [...document.querySelectorAll('img')]
+            .filter((i) => !imagesBefore.has(i.src));
+            
+          const completeImages = allNewImages
             .filter((i) => i.complete && i.naturalWidth >= 256)
             .map((i) => i.src);
-            
-          const newImages = currentImages.filter(src => !imagesBefore.has(src));
 
-          if (newImages.length) return { ok: true, images: newImages };
+          if (completeImages.length) return { ok: true, images: completeImages };
 
-          const c = classify(text);
+          // If there are new images but they haven't finished downloading, keep waiting
+          if (allNewImages.some((i) => !i.complete || i.naturalWidth === 0)) {
+            stableSince = Date.now(); // reset timer to wait for download
+            continue;
+          }
+
+          const toast = PQ.find(PQ.SEL.toast);
+          const fullText = text + ' ' + (toast ? toast.innerText : '');
+          const c = classify(fullText);
           return c
             ? { ok: false, ...c }
             : { ok: false, kind: 'noimage', error: 'Finished without an image' };
