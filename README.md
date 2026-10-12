@@ -14,7 +14,11 @@ Instead of waiting for an image to generate before manually typing the next prom
 ## ✨ Key Features
 
 - **Native UI Integration**: A beautiful Shadow-DOM side-panel that flawlessly mimics ChatGPT's native aesthetic (dark/light mode, typography, interactive states).
-- **Intelligent Prompt Parsing**: Paste messy, raw AI-generated lists. Cadence automatically strips out bullet points, numbering, markdown, and conversational filler, extracting only the actual prompts.
+- **Intelligent Prompt Parsing**:
+  - **Editorial Visual Plans**: Supports multi-paragraph Markdown visual packages (e.g. `## Image N — Title`). Preserves full prompt units with placement notes, formatting, bullet points, and code blocks (`json`, `yaml`, etc.) intact without fragmentation.
+  - **Standard Lists & JSON**: Strips out conversational filler and markers from simple bulleted lists, numbered lists, or JSON arrays.
+  - **File Import**: Supports importing `.txt`, `.csv`, `.md`, and `.markdown` files directly.
+- **Tab-Specific Queue Isolation**: Sessions and queues are isolated per browser tab (`sessionStorage` + namespaced `chrome.storage.local`), ensuring separate ChatGPT tabs don't interfere with each other.
 - **Smart Completion Detection**: The extension doesn't rely on blind timers. It actively monitors the DOM to detect when ChatGPT has finished rendering a high-resolution image or if the prompt failed due to policy restrictions.
 - **Auto-Download Support**: Optionally download generated images straight to your local machine the moment they complete.
 - **Draggable Resizing**: The side-panel is fully resizable and smoothly squashes the ChatGPT chat window out of the way without breaking the React application layout.
@@ -54,12 +58,17 @@ To run Cadence locally before it is published to the Chrome Web Store:
 
 ## 💻 Usage Guide
 
-1. **Queueing**: Open the side panel and either type/paste your prompts into the text area, or click **Import .txt** to load a bulk file.
+1. **Queueing Prompts**:
+   - **Single Prompt Mode**: Type or paste a prompt, then click **Add Prompt** (or press `Ctrl+Enter` / `Cmd+Enter`). You can repeat this to stack prompts one by one into the queue without worrying about line breaks getting fragmented.
+   - **Bulk / Plan Mode**: Paste multi-prompt lists, editorial Markdown packages (`## Image N — Title`), or click **Import file** (`.txt`, `.csv`, `.md`, `.markdown`) to load dozens of prompts at once.
 2. **Settings**:
    - **New chat for each prompt**: Keeps contexts clean (avoids DALL-E degrading image style over a long thread).
    - **Auto-download images**: Automatically saves images to your Chrome downloads folder.
    - **Delay between prompts**: Adds a human-like delay to avoid hitting rate limits instantly.
-3. **Execution**: Click **Start**. You can pause the queue at any time.
+   - **Retry failed once**: Automatically retries a transient generation failure once.
+3. **Execution**:
+   - Review your queued prompts in the list (hover for full prompt tooltips or click `✕` to remove any item).
+   - Click **Start** to run the queue. Cadence automatically processes each prompt sequentially and updates progress in real time. Pause at any time by clicking **Pause**.
 
 ## ⚠️ Disclaimer
 

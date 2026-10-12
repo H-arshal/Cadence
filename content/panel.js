@@ -68,6 +68,11 @@
   .pb{padding:16px;display:flex;flex-direction:column;gap:24px;overflow:auto;flex:1}
   .sec{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em}
   
+  .tabs{display:flex;background:var(--surface2);padding:3px;border-radius:10px;gap:2px;margin-bottom:12px}
+  .tab{flex:1;padding:6px 10px;border-radius:7px;background:transparent;color:var(--muted);font-size:12px;font-weight:600;border:0;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:0.01em}
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+
   textarea{width:100%;min-height:100px;resize:vertical;background:var(--surface);color:var(--text);
     border:1px solid var(--border);border-radius:12px;padding:12px;font:inherit;outline:none;transition:border-color .2s, box-shadow .2s; line-height:1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.02)}
   textarea:focus{border-color:var(--text); box-shadow: 0 0 0 1px var(--text);}
@@ -130,11 +135,19 @@
     <div class="ph"><b>Cadence</b><span style="display:flex;align-items:center;gap:4px"><span class="badge" id="count">0 / 0</span><button class="x" id="theme-btn" title="Toggle Theme"></button><button class="x" id="close">✕</button></span></div>
     <div class="pb">
       <div>
-        <div class="sec">Paste prompts — one per line</div>
-        <textarea id="ta" placeholder="A red fox in watercolor&#10;Isometric city at night"></textarea>
-        <div class="row" style="margin-top:8px">
-          <button class="ghost" id="imp">Import .txt</button><input type="file" id="file" accept=".txt,.csv" hidden>
-          <button class="pri" id="add">Add to queue</button>
+        <div class="tabs">
+          <button class="tab active" id="tab-single" type="button">Single Prompt</button>
+          <button class="tab" id="tab-bulk" type="button">Bulk / Plan</button>
+        </div>
+        <div class="sec" id="input-desc">Add one prompt at a time</div>
+        <textarea id="ta" placeholder="Type or paste a prompt...&#10;Press Add Prompt or Ctrl+Enter to queue.&#10;Add multiple prompts, then click Start below."></textarea>
+        <div class="row" id="single-actions" style="margin-top:8px">
+          <span style="font-size:12px;color:var(--muted)">Ctrl+Enter to queue</span>
+          <button class="pri" id="add-single" type="button">Add Prompt</button>
+        </div>
+        <div class="row" id="bulk-actions" style="margin-top:8px;display:none">
+          <button class="ghost" id="imp" type="button">Import file</button><input type="file" id="file" accept=".txt,.csv,.md,.markdown" hidden>
+          <button class="pri" id="add" type="button">Add all to queue</button>
         </div>
       </div>
       <div class="notice" id="notice"></div>
@@ -179,6 +192,140 @@
     const btn = $('#theme-btn');
     if (btn) btn.innerHTML = isDark ? icons.sun : icons.moon;
   }
+
+  const splitImagePrompts = (raw) => {
+    if (!raw || !raw.trim()) return [];
+    const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+
+    let fenceChar = null;
+    let fenceLen = 0;
+    const headings = [];
+    let offset = 0;
+
+    // Heading pattern: matches ## Image 1 — Title, ### Visual 2: Title, ## Prompt 3 - Title, etc.
+    const headingRe = /^[ \t]*#{1,3}[ \t]*\*{0,2}[ \t]*(?:Image|Visual|Figure|Prompt)[ \t]+(\d+)(?:[ \t]*[—–\-:\.][ \t]*(.*?)|[ \t]+(.*?))?(?:\*{0,2})[ \t]*$/i;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (!fenceChar) {
+        const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+        if (fenceMatch) {
+          fenceChar = fenceMatch[1][0];
+          fenceLen = fenceMatch[1].length;
+        } else {
+          const match = line.match(headingRe);
+          if (match) {
+            const imageNum = Number(match[1]);
+            const rawTitle = (match[2] !== undefined ? match[2] : match[3]) || '';
+            const title = rawTitle.replace(/^\*{1,2}|\*{1,2}$/g, '').trim();
+            headings.push({
+              index: offset,
+              imageNumber: imageNum,
+              title: title
+            });
+          }
+        }
+      } else {
+        const closeMatch = trimmed.match(/^(`{3,}|~{3,})/);
+        if (closeMatch && closeMatch[1][0] === fenceChar && closeMatch[1].length >= fenceLen) {
+          fenceChar = null;
+          fenceLen = 0;
+        }
+      }
+
+      offset += line.length + 1; // +1 for \n
+    }
+
+    if (headings.length === 0) return [];
+
+    return headings.map((heading, index) => {
+      const start = heading.index;
+      const end = index + 1 < headings.length ? headings[index + 1].index : normalized.length;
+      let section = normalized.slice(start, end).trim();
+      // Remove trailing Markdown divider if present
+      section = section.replace(/\n\s*---\s*$/, '').trim();
+      return {
+        imageNumber: heading.imageNumber,
+        title: heading.title,
+        content: section
+      };
+    }).filter((item) => item.content.length >= 5);
+  };
+
+  const parsePrompts = (raw) => {
+    if (!raw || !raw.trim()) return [];
+
+    // 1. Check for JSON array format
+    try {
+      const j = JSON.parse(raw);
+      if (Array.isArray(j)) return j.map(String).map((s) => s.trim()).filter(Boolean);
+    } catch (e) {}
+
+    // 2. Heading-based editorial parser (preserves entire prompt units, metadata, JSON & formatting)
+    const imageUnits = splitImagePrompts(raw);
+    if (imageUnits.length > 0) {
+      return imageUnits.map((u) => u.content);
+    }
+
+    // 3. Fallback: line/marker-based parser for simple prompts, bullets, or numbers
+    let lines = raw.replace(/\r/g, '').split('\n');
+    let prompts = [];
+    let currentPrompt = [];
+
+    const isMarker = (l) => /^\s*(?:\d+[\.\)]|\-|\*|•|Prompt \d+:?|Image \d+:?)/i.test(l);
+    const cleanMarker = (l) => {
+      let c = l.replace(/^\s*(?:\d+[\.\)]|\-|\*|•|Prompt \d+:?|Image \d+:?)\s*/i, '').trim();
+      return c.replace(/^["'](.*)["']$/, '$1').trim();
+    };
+    const isFiller = (l) => {
+      const lower = l.toLowerCase();
+      return /^(here (are|is)|sure|certainly|below (are|is)|these are|enjoy|let me know|feel free|hope this helps)/.test(lower) || 
+             /^[-=_]+$/.test(l) || 
+             l.length < 3;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (!line) {
+        if (currentPrompt.length > 0) {
+          prompts.push(currentPrompt.join('\n'));
+          currentPrompt = [];
+        }
+        continue;
+      }
+
+      if (isMarker(line)) {
+        if (currentPrompt.length > 0) {
+          prompts.push(currentPrompt.join('\n'));
+        }
+        let cleaned = cleanMarker(line);
+        currentPrompt = cleaned ? [cleaned] : [];
+      } else {
+        if (isFiller(line)) {
+          continue;
+        }
+        if (currentPrompt.length === 0) {
+          line = cleanMarker(line);
+        }
+        currentPrompt.push(line);
+      }
+    }
+    if (currentPrompt.length > 0) {
+      prompts.push(currentPrompt.join('\n'));
+    }
+
+    prompts = prompts.filter(p => !isFiller(p) && p.length >= 5);
+
+    if (prompts.length === 1 && prompts[0].includes('\n')) {
+      const splitByLines = prompts[0].split('\n').map(l => l.trim()).filter(l => l.length >= 5);
+      if (splitByLines.length > 1) return splitByLines;
+    }
+
+    return prompts;
+  };
 
   function mount(a) {
     api = a;
@@ -288,70 +435,53 @@
       updateTheme();
     };
     $('#close').onclick = () => togglePanel(false);
-    const parsePrompts = (raw) => {
-      try { const j = JSON.parse(raw); if (Array.isArray(j)) return j.map(String); } catch(e){}
-      
-      let lines = raw.replace(/\r/g, '').split('\n');
-      let prompts = [];
-      let currentPrompt = [];
-      
-      const isMarker = (l) => /^\s*(?:\d+[\.\)]|\-|\*|•|Prompt \d+:?|Image \d+:?)/i.test(l);
-      const cleanMarker = (l) => {
-        let c = l.replace(/^\s*(?:\d+[\.\)]|\-|\*|•|Prompt \d+:?|Image \d+:?)\s*/i, '').trim();
-        return c.replace(/^["'](.*)["']$/, '$1').trim();
-      };
-      const isFiller = (l) => {
-        const lower = l.toLowerCase();
-        return /^(here (are|is)|sure|certainly|below (are|is)|these are|enjoy|let me know|feel free|hope this helps)/.test(lower) || 
-               /^[-=_]+$/.test(l) || 
-               l.length < 3;
-      };
 
-      for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
-        if (!line) {
-          if (currentPrompt.length > 0) {
-            prompts.push(currentPrompt.join('\n'));
-            currentPrompt = [];
-          }
-          continue;
-        }
-        
-        if (isMarker(line)) {
-          if (currentPrompt.length > 0) {
-            prompts.push(currentPrompt.join('\n'));
-          }
-          let cleaned = cleanMarker(line);
-          currentPrompt = cleaned ? [cleaned] : [];
-        } else {
-          if (isFiller(line)) {
-            continue;
-          }
-          if (currentPrompt.length === 0) {
-             line = cleanMarker(line);
-          }
-          currentPrompt.push(line);
-        }
-      }
-      if (currentPrompt.length > 0) {
-        prompts.push(currentPrompt.join('\n'));
-      }
-      
-      prompts = prompts.filter(p => !isFiller(p) && p.length >= 5);
-      
-      if (prompts.length === 1 && prompts[0].includes('\n')) {
-         const splitByLines = prompts[0].split('\n').map(l => l.trim()).filter(l => l.length >= 5);
-         if (splitByLines.length > 1) return splitByLines;
-      }
-      
-      return prompts;
+    let currentInputMode = 'single';
+
+    const setInputMode = (mode) => {
+      currentInputMode = mode;
+      const isSingle = mode === 'single';
+      $('#tab-single').classList.toggle('active', isSingle);
+      $('#tab-bulk').classList.toggle('active', !isSingle);
+      $('#single-actions').style.display = isSingle ? 'flex' : 'none';
+      $('#bulk-actions').style.display = isSingle ? 'none' : 'flex';
+      $('#input-desc').textContent = isSingle ? 'Add one prompt at a time' : 'Paste full list or Markdown visual plan';
+      $('#ta').placeholder = isSingle
+        ? 'Type or paste a prompt...\nPress Add Prompt or Ctrl+Enter to queue.\nAdd multiple prompts, then click Start below.'
+        : 'A red fox in watercolor\nor:\n## Image 1 — Cover\nPrompt: ...';
     };
 
-    $('#add').onclick = () => { 
+    $('#tab-single').onclick = () => setInputMode('single');
+    $('#tab-bulk').onclick = () => setInputMode('bulk');
+
+    const addSinglePrompt = () => {
+      const text = $('#ta').value.trim();
+      if (text.length) {
+        api.add([text]);
+        $('#ta').value = '';
+        $('#ta').focus();
+      }
+    };
+
+    const addBulkPrompts = () => {
       const p = parsePrompts($('#ta').value);
       if (p.length) api.add(p);
-      $('#ta').value = ''; 
+      $('#ta').value = '';
     };
+
+    $('#add-single').onclick = addSinglePrompt;
+    $('#add').onclick = addBulkPrompts;
+
+    $('#ta').addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (currentInputMode === 'single') {
+          addSinglePrompt();
+        } else {
+          addBulkPrompts();
+        }
+      }
+    });
     $('#imp').onclick = () => $('#file').click();
     $('#file').onchange = async (e) => {
       const target = e.target;
@@ -383,7 +513,7 @@
     $('#pct').textContent = `${pct}%`;
     $('#fill').style.width = `${pct}%`;
     $('#list').innerHTML = state.items.map((it, i) =>
-      `<div class="item"><span class="n">${i + 1}</span><p>${esc(it.text)}</p>${chip(it)}` +
+      `<div class="item"><span class="n">${i + 1}</span><p title="${esc(it.text)}">${esc(it.text)}</p>${chip(it)}` +
       (it.status === 'running' ? '' : `<button class="x" data-rm="${it.id}" title="Remove">✕</button>`) + '</div>'
     ).join('');
     $('#go').textContent = state.running ? (busy ? 'Pause' : 'Pausing…') : 'Start';
@@ -394,5 +524,5 @@
     n.classList.toggle('on', !!state.notice);
   }
 
-  PQ.panel = { mount, render };
+  PQ.panel = { mount, render, parsePrompts, splitImagePrompts };
 })();

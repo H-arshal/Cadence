@@ -29,15 +29,9 @@ files.forEach(f => {
   vm.runInContext(code, sandbox);
 });
 
-// We need to extract parsePrompts from panel.js for testing
-const panelCode = fs.readFileSync('../content/panel.js', 'utf8');
-const parsePromptsMatch = panelCode.match(/const parsePrompts = \(raw\) => \{[\s\S]*?return prompts;\n\s*\};/);
-if (parsePromptsMatch) {
-  vm.runInContext(parsePromptsMatch[0] + '\nwindow.parsePrompts = parsePrompts;', sandbox);
-}
-
 const PQ = sandbox.window.PQ;
-const parsePrompts = sandbox.window.parsePrompts;
+const parsePrompts = PQ.panel.parsePrompts;
+const splitImagePrompts = PQ.panel.splitImagePrompts;
 
 // --- TESTS ---
 
@@ -56,7 +50,7 @@ test('engine.js: classify', (t) => {
   assert.strictEqual(classify("Here is your image of a cute dog."), null);
 });
 
-test('panel.js: parsePrompts', (t) => {
+test('panel.js: parsePrompts (legacy & fallback formats)', (t) => {
   deepEqual(parsePrompts(""), []);
   deepEqual(parsePrompts("   \n  \t"), []);
 
@@ -68,3 +62,122 @@ test('panel.js: parsePrompts', (t) => {
 
   deepEqual(parsePrompts('["A red fox", "Isometric city"]'), ["A red fox", "Isometric city"]);
 });
+
+test('panel.js: parsePrompts & splitImagePrompts (editorial heading format)', (t) => {
+  const sampleEditorial = `## Image 3 — What a suspicious configuration looks like
+
+This is the practical visual for Section 4.
+
+**Prompt: Editorial code illustration — Configuration Is an Execution Surface**
+
+Create a minimalist technical illustration.
+
+**Primary subject:** A clean code editor.
+
+**Technical accuracy:** Use this JSON example:
+
+\`\`\`json
+{
+  "label": "Initialize workspace",
+  "type": "shell"
+}
+\`\`\`
+
+**Format:** 4:3 landscape, 1600 × 1200 pixels.
+
+Avoid rounded UI cards and excessive text.`;
+
+  // Must produce exactly ONE prompt unit, preserving JSON, format, and instructions
+  const result = parsePrompts(sampleEditorial);
+  assert.strictEqual(result.length, 1);
+  assert.strictEqual(result[0], sampleEditorial.trim());
+  assert.ok(result[0].includes('"label": "Initialize workspace"'));
+  assert.ok(result[0].includes('**Format:** 4:3 landscape'));
+
+  // Test splitImagePrompts structure
+  const structured = splitImagePrompts(sampleEditorial);
+  assert.strictEqual(structured.length, 1);
+  assert.strictEqual(structured[0].imageNumber, 3);
+  assert.strictEqual(structured[0].title, "What a suspicious configuration looks like");
+  assert.strictEqual(structured[0].content, sampleEditorial.trim());
+});
+
+test('panel.js: multi-image editorial article prompt package', (t) => {
+  const multiImagePackage = `# Visual Plan: The Supply-Chain Attack Didn't Stop at npm
+Overview of visual direction for Medium article.
+
+---
+
+## Image 1 — The cover image
+Priority 1
+Place this immediately after Section 3.
+
+**Prompt: Cover illustration — The Supply-Chain Attack**
+Communicates the article's central argument at a glance.
+
+---
+
+## Image 2 — Attack-chain infographic
+Priority 2
+Explains the technical sequence and causal relationships.
+
+**Prompt: Infographic sequence**
+Diagram showing vector flow.
+
+---
+
+## Image 3 — What a suspicious configuration looks like
+Practical visual for Section 4.
+
+**Prompt: Code editor illustration**
+Shows risky setting.
+
+---
+
+## Image 4 — Investigation checklist
+Converts recommendations into an actionable visual.
+
+**Prompt: Checklist matrix**
+Inspection checklist.`;
+
+  const parsed = parsePrompts(multiImagePackage);
+  assert.strictEqual(parsed.length, 4);
+
+  const units = splitImagePrompts(multiImagePackage);
+  assert.strictEqual(units.length, 4);
+  assert.strictEqual(units[0].imageNumber, 1);
+  assert.strictEqual(units[0].title, "The cover image");
+  assert.strictEqual(units[1].imageNumber, 2);
+  assert.strictEqual(units[1].title, "Attack-chain infographic");
+  assert.strictEqual(units[2].imageNumber, 3);
+  assert.strictEqual(units[2].title, "What a suspicious configuration looks like");
+  assert.strictEqual(units[3].imageNumber, 4);
+  assert.strictEqual(units[3].title, "Investigation checklist");
+
+  // Ensure preamble was not included as an image
+  assert.ok(!parsed[0].startsWith('# Visual Plan'));
+  assert.ok(parsed[0].startsWith('## Image 1 — The cover image'));
+  // Ensure trailing horizontal rules were cleanly trimmed
+  assert.ok(!parsed[0].endsWith('---'));
+});
+
+test('panel.js: code fence edge case (headings inside code blocks)', (t) => {
+  const codeBlockPrompt = `## Image 1 — Realistic illustration
+Here is the code block with an example Markdown snippet:
+
+\`\`\`markdown
+## Image 2 — Fake heading inside code
+This should not split Image 1.
+\`\`\`
+
+Still Image 1 instructions.
+
+## Image 2 — Real second image
+Actual image 2 content.`;
+
+  const parsed = parsePrompts(codeBlockPrompt);
+  assert.strictEqual(parsed.length, 2);
+  assert.ok(parsed[0].includes('Fake heading inside code'));
+  assert.ok(parsed[1].startsWith('## Image 2 — Real second image'));
+});
+
