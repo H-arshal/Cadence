@@ -1,6 +1,7 @@
 <div align="center">
-  <img src="./cadence-lockup-dark.png" alt="Cadence for ChatGPT" width="400">
-  <p><strong>A powerful Chrome extension for automating bulk image generation on ChatGPT / DALL-E 3</strong></p>
+  <img src="./icons/circle/cadence-icon-white-circle-256.png" alt="Cadence for ChatGPT" width="140">
+  <h1 style="border:none; margin: 12px 0 6px 0;">Cadence</h1>
+  <p><strong>A powerful Chrome extension for automating sequential image generation on ChatGPT / DALL-E 3</strong></p>
 </div>
 
 ---

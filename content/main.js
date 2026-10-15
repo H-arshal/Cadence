@@ -93,7 +93,12 @@
     setting(k, v) { state.settings[k] = v; emit(); },
     toggleRun() {
       if (state.running) { state.running = false; emit(); return; } // current prompt finishes first
-      state.items.forEach((i) => { if (i.status === 'failed') { i.status = 'pending'; i.retried = false; } });
+      state.items.forEach((i) => {
+        if (i.status === 'failed' || i.status === 'running') {
+          i.status = 'pending';
+          i.retried = false;
+        }
+      });
       state.running = true;
       state.notice = '';
       emit();

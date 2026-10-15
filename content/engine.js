@@ -24,37 +24,73 @@
     if (el.tagName === 'TEXTAREA') {
       el.value = text;
       el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
       if (!el.value.trim()) throw new Error('Could not type the prompt in textarea');
       return;
     }
+
+    // Set caret/selection inside the contenteditable element
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) {}
 
     document.execCommand('selectAll', false);
     document.execCommand('delete', false);
     const ok = document.execCommand('insertText', false, text);
     if (!ok || !el.textContent.trim()) {
-      // Fallback: simulate a paste
-      const dt = new DataTransfer();
-      dt.setData('text/plain', text);
-      el.dispatchEvent(
-        new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
-      );
+      // Direct paragraph update if execCommand was prevented
+      let p = el.querySelector('p');
+      if (!p) {
+        p = document.createElement('p');
+        el.appendChild(p);
+      }
+      p.textContent = text;
+
+      // Fallback: simulate paste event
+      try {
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        el.dispatchEvent(
+          new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })
+        );
+      } catch (e) {}
     }
+
+    // Always dispatch input and change events so React and ProseMirror update their state
+    try {
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: text }));
+    } catch (e) {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+
     if (!el.textContent.trim()) throw new Error('Could not type the prompt');
   }
 
   async function send() {
     const btn = await waitFor(() => {
       const b = PQ.find(PQ.SEL.send);
-      return b && !b.disabled ? b : null;
+      if (!b) return null;
+      const disabled = b.disabled || b.getAttribute('aria-disabled') === 'true' || b.classList.contains('disabled');
+      return !disabled ? b : null;
     }, { timeout: 10000 });
-    if (btn) { btn.click(); return; }
+
+    if (btn) {
+      btn.click();
+      return;
+    }
+
+    // Fallback: trigger Enter on the input element
     const el = PQ.find(PQ.SEL.input);
-    el.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
-    }));
+    if (el) {
+      el.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
+      }));
+    }
   }
-
-
 
   function classify(text) {
     if (/(reached|hit|exceeded).{0,50}limit|too many (requests|images)|(try again|come back) (in|later)/i.test(text))
@@ -66,45 +102,74 @@
 
   async function waitForCompletion(turnsBefore, imagesBefore, { startTimeout = 45000, maxTotal = 300000 } = {}) {
     const t0 = Date.now();
+    
+    // Check if generation started:
+    // 1. Stop button appeared
+    // 2. Turns increased (user message or assistant turn appeared)
+    // 3. "Creating image" or "Generating" text appeared
+    // 4. Any new image or placeholder appeared
     const started = await waitFor(
-      () => PQ.find(PQ.SEL.stop) || turns().length >= turnsBefore + 2,
+      () => {
+        if (PQ.find(PQ.SEL.stop)) return true;
+        if (turns().length > turnsBefore) return true;
+        const bodyText = document.body ? document.body.innerText : '';
+        if (/creating image|generating/i.test(bodyText)) return true;
+        const newImgs = [...document.querySelectorAll('img')].filter((i) => !imagesBefore.has(i.src));
+        if (newImgs.length > 0) return true;
+        return false;
+      },
       { timeout: startTimeout }
     );
     if (!started) return { ok: false, error: 'No response detected after sending' };
 
     let stableSince = 0;
+    const minWaitTime = 6000; // An image generation takes at least 6s
+
     while (Date.now() - t0 < maxTotal) {
-      const last = turns().pop();
-      const text = last ? last.innerText : '';
-      const busy = !!PQ.find(PQ.SEL.stop) || /creating image/i.test(text);
+      const allTurns = turns();
+      const last = allTurns.length ? allTurns[allTurns.length - 1] : null;
+      const lastText = last ? last.innerText : '';
+      const bodyText = document.body ? document.body.innerText : '';
+
+      // Check for errors, limits, or policy refusals first
+      const toast = PQ.find(PQ.SEL.toast);
+      const fullText = (lastText + ' ' + (toast ? toast.innerText : '')).trim();
+      const c = classify(fullText);
+      if (c) return { ok: false, ...c };
+
+      // Look for ANY new large image on the page
+      const allNewImages = [...document.querySelectorAll('img')]
+        .filter((i) => !imagesBefore.has(i.src));
+        
+      const completeImages = allNewImages
+        .filter((i) => i.complete && i.naturalWidth >= 256)
+        .map((i) => i.src);
+
+      if (completeImages.length) return { ok: true, images: completeImages };
+
+      // If new images exist but are still downloading, wait
+      const isImageDownloading = allNewImages.some((i) => !i.complete || i.naturalWidth === 0);
+
+      const busy = 
+        !!PQ.find(PQ.SEL.stop) || 
+        /creating image/i.test(lastText) || 
+        /creating image/i.test(bodyText) ||
+        isImageDownloading ||
+        (Date.now() - t0 < minWaitTime);
 
       if (busy) {
         stableSince = 0;
       } else {
         if (!stableSince) stableSince = Date.now();
-        if (Date.now() - stableSince >= 3000) {
-          // DOM-agnostic image check: look for ANY new large image on the page
-          const allNewImages = [...document.querySelectorAll('img')]
-            .filter((i) => !imagesBefore.has(i.src));
-            
-          const completeImages = allNewImages
-            .filter((i) => i.complete && i.naturalWidth >= 256)
+        if (Date.now() - stableSince >= 4000) {
+          // Re-check for images one final time
+          const finalImages = [...document.querySelectorAll('img')]
+            .filter((i) => !imagesBefore.has(i.src) && i.complete && i.naturalWidth >= 256)
             .map((i) => i.src);
 
-          if (completeImages.length) return { ok: true, images: completeImages };
+          if (finalImages.length) return { ok: true, images: finalImages };
 
-          // If there are new images but they haven't finished downloading, keep waiting
-          if (allNewImages.some((i) => !i.complete || i.naturalWidth === 0)) {
-            stableSince = Date.now(); // reset timer to wait for download
-            continue;
-          }
-
-          const toast = PQ.find(PQ.SEL.toast);
-          const fullText = text + ' ' + (toast ? toast.innerText : '');
-          const c = classify(fullText);
-          return c
-            ? { ok: false, ...c }
-            : { ok: false, kind: 'noimage', error: 'Finished without an image' };
+          return { ok: false, kind: 'noimage', error: 'Finished without an image' };
         }
       }
       await sleep(500);
@@ -123,14 +188,20 @@
 
   async function runItem(text, { newChat: nc = false } = {}) {
     if (nc) await newChat();
-    setPrompt(text);
-    await sleep(300);
     
-    // Record all existing images on the page before we send
+    // If ChatGPT is currently finishing a previous response or image, wait up to 15s for idle
+    await waitFor(() => {
+      const stop = PQ.find(PQ.SEL.stop);
+      const input = PQ.find(PQ.SEL.input);
+      return !stop && input ? input : null;
+    }, { timeout: 15000 });
+
+    setPrompt(text);
+    await sleep(400);
+    
+    // Record ALL existing images on the page before sending
     const imagesBefore = new Set(
-      [...document.querySelectorAll('img')]
-        .filter((i) => i.naturalWidth >= 256)
-        .map((i) => i.src)
+      [...document.querySelectorAll('img')].map((i) => i.src).filter(Boolean)
     );
     
     const before = turns().length;

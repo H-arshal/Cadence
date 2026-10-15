@@ -42,13 +42,13 @@
   ::-webkit-scrollbar-thumb { background: rgba(136, 136, 136, 0.3); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(136, 136, 136, 0.5); }
   
-  #fab{position:fixed;bottom:80px;right:24px;z-index:2147483000;background:var(--surface);color:var(--text);
-    border:1px solid var(--border);border-radius:999px;padding:12px 20px;font:500 14px inherit;cursor:pointer;
-    box-shadow:0 4px 12px rgba(0,0,0,.08); transition:transform .2s ease, background .2s, box-shadow .2s;
-    display:flex;align-items:center;gap:8px;}
-  #fab:hover{transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.12); background:var(--surface)}
+  #fab{position:fixed;bottom:80px;right:24px;z-index:2147483000;background:#ffffff;color:#0d0d0d;
+    border:1px solid rgba(0,0,0,0.08);border-radius:9999px;padding:10px 20px;font:550 15px inherit;cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06); transition:transform .2s ease, box-shadow .2s;
+    display:flex;align-items:center;gap:10px;letter-spacing:-0.01em;}
+  #fab:hover{transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,.16); background:#ffffff}
   #fab:active{transform:translateY(1px); box-shadow:0 2px 8px rgba(0,0,0,.08);}
-  #fab svg{width:18px;height:18px}
+  #fab svg{width:20px;height:20px;display:block;flex-shrink:0}
   
   #panel{position:fixed;top:0;right:0;height:100vh;width:var(--panel-width, 320px);z-index:2147483001;background:var(--bg);
     border-left:1px solid var(--border);display:flex;flex-direction:column; overflow:hidden;
@@ -125,14 +125,27 @@
   const HTML = `
   <button id="fab">
     <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-      <path d="M77.5 30 H52 C34.2 30 21 43.5 21 64 C21 84.5 34.2 98 52 98 H77.5" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="46" y="57" width="52" height="14" rx="7" fill="#F86D1A" stroke="none" />
+      <path d="M77.5 30 H52 C34.2 30 21 43.5 21 64 C21 84.5 34.2 98 52 98 H77.5" fill="none" stroke="#0d0d0d" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="46" y="57" width="52" height="14" rx="7" fill="#F86D1A" />
     </svg>
     Cadence
   </button>
   <aside id="panel">
     <div class="resizer" id="resizer"></div>
-    <div class="ph"><b>Cadence</b><span style="display:flex;align-items:center;gap:4px"><span class="badge" id="count">0 / 0</span><button class="x" id="theme-btn" title="Toggle Theme"></button><button class="x" id="close">✕</button></span></div>
+    <div class="ph">
+      <b style="display:flex;align-items:center;gap:8px">
+        <svg width="20" height="20" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+          <path d="M77.5 30 H52 C34.2 30 21 43.5 21 64 C21 84.5 34.2 98 52 98 H77.5" fill="none" stroke="currentColor" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" />
+          <rect x="46" y="57" width="52" height="14" rx="7" fill="#F86D1A" />
+        </svg>
+        Cadence
+      </b>
+      <span style="display:flex;align-items:center;gap:4px">
+        <span class="badge" id="count">0 / 0</span>
+        <button class="x" id="theme-btn" title="Toggle Theme"></button>
+        <button class="x" id="close">✕</button>
+      </span>
+    </div>
     <div class="pb">
       <div>
         <div class="tabs">

@@ -181,3 +181,14 @@ Actual image 2 content.`;
   assert.ok(parsed[1].startsWith('## Image 2 — Real second image'));
 });
 
+test('selectors.js: selector hierarchy and priority', (t) => {
+  // #prompt-textarea must be prioritized first for reliable ChatGPT typing
+  assert.strictEqual(PQ.SEL.input[0], '#prompt-textarea');
+  // Send button data-testid must be first
+  assert.strictEqual(PQ.SEL.send[0], 'button[data-testid="send-button"]');
+  // Turns must include generic article and message containers
+  assert.ok(PQ.SEL.turn.includes('article'));
+  assert.ok(PQ.SEL.turn.includes('div[data-message-author-role]'));
+});
+
+

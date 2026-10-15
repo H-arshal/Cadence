@@ -108,6 +108,13 @@ End of first.
       log('Code fence boundary protection failed', false);
     }
 
+    // Test 7: Selector priority
+    if (PQ.SEL.input[0] === '#prompt-textarea' && PQ.SEL.send[0] === 'button[data-testid="send-button"]') {
+      log('Selector hierarchy verified (#prompt-textarea and send-button prioritized)');
+    } else {
+      log('Selector hierarchy verification failed', false);
+    }
+
     // Summary
     const passed = results.filter(r => r.ok).length;
     const summary = document.createElement('div');

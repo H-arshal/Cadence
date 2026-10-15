@@ -1,21 +1,24 @@
-// ALL ChatGPT DOM knowledge lives here. When ChatGPT changes its UI,
-// this is the only file that should need fixing. Put the most specific
-// selector first; later ones are fallbacks.
 (() => {
   const PQ = (window.PQ = window.PQ || {});
 
   PQ.SEL = {
     input: [
+      '#prompt-textarea',
+      'div#prompt-textarea',
       'div[contenteditable="true"].ProseMirror',
       'div[aria-label="Ask ChatGPT"]',
-      '#prompt-textarea',
-      'form div[contenteditable="true"]'
+      'div[aria-label="Message ChatGPT"]',
+      'div[contenteditable="true"]',
+      'textarea[data-testid="textbox"]',
+      'form div[contenteditable="true"]',
+      'form textarea'
     ],
     send: [
-      'button[aria-label="Send"]',
       'button[data-testid="send-button"]',
       'button[aria-label="Send prompt"]',
+      'button[aria-label="Send"]',
       'button[aria-label*="Send"]',
+      'form button[type="submit"]',
       'button[type="submit"]'
     ],
     stop: [
@@ -25,7 +28,7 @@
     ],
     turn: [
       'article[data-testid^="conversation-turn"]',
-      'div[data-message-author-role="assistant"]',
+      'article',
       'div[data-message-author-role]',
       'div[data-message-id]',
       'div.w-full.text-token-text-primary'
