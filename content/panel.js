@@ -355,65 +355,29 @@
     let currentWidth = 320;
     let isResizing = false;
 
+    const adjustPageLayout = (open, width = currentWidth, animate = true) => {
+      // Clean up any legacy spacer element that might linger in the DOM
+      const legacySpacer = document.getElementById('cadence-spacer');
+      if (legacySpacer) legacySpacer.remove();
+
+      if (open) {
+        document.body.style.transition = animate ? 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none';
+        document.body.style.width = `calc(100% - ${width}px)`;
+      } else {
+        document.body.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        document.body.style.width = '';
+      }
+    };
+
     const togglePanel = (open) => {
       $('#panel').classList.toggle('open', open);
       $('#fab').style.display = open ? 'none' : '';
-      
-      let spacer = document.getElementById('cadence-spacer');
-      
-      if (open) {
-        if (!spacer) {
-          spacer = document.createElement('div');
-          spacer.id = 'cadence-spacer';
-          // Initialize at 0px width for a smooth entrance
-          spacer.style.cssText = 'width: 0px; flex-shrink: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1);';
-          
-          const main = document.querySelector('main');
-          if (main) {
-            let container = main;
-            let targetRow = null;
-            
-            // Climb up to find the FIRST parent that is a flex row.
-            while (container.parentElement) {
-              container = container.parentElement;
-              const style = window.getComputedStyle(container);
-              if (style.display === 'flex' && style.flexDirection === 'row') {
-                targetRow = container;
-                break;
-              }
-            }
-            
-            const target = targetRow || container;
-            if (target) {
-              target.appendChild(spacer);
-            }
-          }
-        }
-        
-        // Force a layout reflow so the browser registers the 0px starting state
-        void spacer.offsetWidth;
-        // Trigger the CSS transition to currentWidth
-        spacer.style.width = `${currentWidth}px`;
-        
-      } else {
-        if (spacer) {
-          // Trigger the CSS transition back to 0px
-          spacer.style.width = '0px';
-          // Wait for the transition (0.3s) to finish before removing the element
-          setTimeout(() => {
-            if (!$('#panel').classList.contains('open') && spacer.parentNode) {
-              spacer.remove();
-            }
-          }, 300);
-        }
-      }
+      adjustPageLayout(open, currentWidth, true);
     };
 
     $('#resizer').addEventListener('mousedown', (e) => {
       isResizing = true;
       $('#resizer').classList.add('active');
-      const spacer = document.getElementById('cadence-spacer');
-      if (spacer) spacer.style.transition = 'none';
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
       e.preventDefault();
@@ -427,16 +391,14 @@
       currentWidth = newWidth;
       
       $('#panel').style.setProperty('--panel-width', `${newWidth}px`);
-      const spacer = document.getElementById('cadence-spacer');
-      if (spacer) spacer.style.width = `${newWidth}px`;
+      adjustPageLayout(true, newWidth, false);
     });
 
     window.addEventListener('mouseup', () => {
       if (isResizing) {
         isResizing = false;
         $('#resizer').classList.remove('active');
-        const spacer = document.getElementById('cadence-spacer');
-        if (spacer) spacer.style.transition = 'width 0.3s cubic-bezier(0.4,0,0.2,1)';
+        document.body.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       }

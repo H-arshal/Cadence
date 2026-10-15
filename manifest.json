@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cadence for ChatGPT",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Queue many image prompts and let them run one after another on ChatGPT.",
   "icons": {
     "16": "icons/extension/icon-16.png",

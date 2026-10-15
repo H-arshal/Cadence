@@ -80,6 +80,8 @@
 
     if (btn) {
       btn.click();
+      const el = PQ.find(PQ.SEL.input);
+      if (el) el.blur();
       return;
     }
 
@@ -89,6 +91,7 @@
       el.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
       }));
+      el.blur();
     }
   }
 
